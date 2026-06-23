@@ -657,7 +657,7 @@ async function executarPipelineTodos() {
 async function executarPipelineTicker(ticker) {
   const resultEl = document.getElementById('pipelineResult');
   try {
-    await api(`/pipeline/${ticker}?max_relatorios=10`, { method: 'POST' });
+    await api(`/pipeline/${ticker}?max_relatorios=2`, { method: 'POST' });
     carregarCarteira();
   } catch (e) {
     alert('Erro: ' + e.message);

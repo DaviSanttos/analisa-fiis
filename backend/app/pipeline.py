@@ -23,7 +23,7 @@ class PipelineProcessamento:
         os.makedirs(self.data_dir, exist_ok=True)
 
     def executar_para_fii(
-        self, ticker: str, cnpj: Optional[str] = None, max_relatorios: int = 10
+        self, ticker: str, cnpj: Optional[str] = None, max_relatorios: int = 2
     ) -> Dict[str, Any]:
         resultado = {"ticker": ticker, "relatorios_analisados": 0, "total": 0, "ignorados": 0, "erro": None}
 
@@ -124,6 +124,35 @@ class PipelineProcessamento:
             if analise:
                 dims = analise.get("dimensoes")
                 criterios = analise.get("criterios_analise")
+
+                # Validação server-side do score: recalcula a média ponderada
+                if criterios and isinstance(criterios, dict):
+                    pesos = {
+                        "geracao_renda": 0.30,
+                        "qualidade_portfolio": 0.25,
+                        "saude_financeira": 0.20,
+                        "gestao_governanca": 0.15,
+                        "perspectivas": 0.10,
+                    }
+                    score_calculado = 0
+                    total_peso = 0
+                    for chave, peso in pesos.items():
+                        item = criterios.get(chave)
+                        if item and isinstance(item, dict):
+                            s = item.get("score")
+                            if isinstance(s, (int, float)):
+                                score_calculado += s * peso
+                                total_peso += peso
+                    if total_peso > 0:
+                        score_final = round(score_calculado / total_peso)
+                        analise["score_saude"] = score_final
+                        if score_final >= 70:
+                            analise["nivel_atencao"] = "VERDE"
+                        elif score_final >= 40:
+                            analise["nivel_atencao"] = "AMARELO"
+                        else:
+                            analise["nivel_atencao"] = "VERMELHO"
+
                 ind_json = {}
                 if dims and isinstance(dims, dict):
                     ind_json["dimensoes"] = dims

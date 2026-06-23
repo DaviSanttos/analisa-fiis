@@ -180,7 +180,7 @@ http://localhost:8000
 
 | Qtde Relatórios | Tempo total | Por relatório |
 |---|---|---|
-| 2 (dev) | ~2.5 min | ~75s |
+| 2 (dev, default) | ~2.5 min | ~75s |
 | 10 (produção) | ~12 min | ~75s |
 
 ## Variáveis de Ambiente (`.env`)
