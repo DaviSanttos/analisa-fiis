@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Analisa FIIs</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:system-ui,-apple-system,sans-serif}
+body{background:#f0f2f5;color:#1a1a2e}
+.header{background:#1a1a2e;color:#fff;padding:16px 24px;display:flex;align-items:center;gap:12px}
+.header h1{font-size:20px;font-weight:600}.header span{font-size:13px;color:#8899aa}
+nav{background:#fff;padding:0 24px;border-bottom:1px solid #e0e0e0;display:flex;gap:0;overflow-x:auto}
+nav a{padding:14px 20px;text-decoration:none;color:#555;font-size:14px;font-weight:500;border-bottom:3px solid transparent;cursor:pointer;white-space:nowrap}
+nav a:hover{color:#1a1a2e;background:#f8f9fa}
+nav a.active{color:#2563eb;border-bottom-color:#2563eb}
+.content{max-width:1200px;margin:24px auto;padding:0 24px}.page{display:none}.page.active{display:block}
+.card{background:#fff;border-radius:10px;padding:20px;box-shadow:0 1px 3px rgba(0,0,0,.08);margin-bottom:16px}
+.card h3{font-size:14px;color:#666;margin-bottom:8px}.card .value{font-size:28px;font-weight:700}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
+.fii-card{border-left:4px solid #ddd;position:relative}
+.fii-card.verde{border-left-color:#22c55e}.fii-card.amarelo{border-left-color:#f59e0b}.fii-card.vermelho{border-left-color:#ef4444}
+.fii-card.analisando{border-left-color:#3b82f6;opacity:.85}
+.fii-card h2{font-size:18px}.fii-card .ticker{font-size:13px;color:#2563eb;font-weight:600}
+.fii-card .info{font-size:13px;color:#666;line-height:1.6}
+.badge{padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600}
+.badge-verde{background:#dcfce7;color:#166534}.badge-amarelo{background:#fef3c7;color:#92400e}.badge-vermelho{background:#fee2e2;color:#991b1b}
+.badge-azul{background:#dbeafe;color:#1e40af}
+.btn{background:#2563eb;color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:500}
+.btn:hover{background:#1d4ed8}.btn-outline{background:0 0;color:#2563eb;border:1px solid #2563eb}
+.btn-sm{padding:5px 10px;font-size:12px}.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-outline:hover{background:#eff6ff}
+.mt-2{margin-top:12px}.mb-2{margin-bottom:12px}.flex{display:flex;align-items:center;gap:8px}.flex-wrap{flex-wrap:wrap}.gap-4{gap:16px}.w-full{width:100%}
+input[type=text]{padding:8px 12px;border:1px solid #d0d0d0;border-radius:6px;font-size:14px;width:100%}
+input:focus{outline:0;border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.1)}
+select{padding:8px 12px;border:1px solid #d0d0d0;border-radius:6px;font-size:14px;background:#fff}
+.modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center}
+.modal.active{display:flex}
+.modal-content{background:#fff;border-radius:12px;padding:24px;max-width:720px;width:95%;max-height:85vh;overflow-y:auto}
+.modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.modal-header h2{font-size:18px}.close-btn{font-size:24px;cursor:pointer;color:#999}
+.close-btn:hover{color:#333}.section-title{font-size:14px;font-weight:600;color:#444;margin-top:16px;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid #eee}
+.analysis-text{font-size:14px;line-height:1.6;color:#333;white-space:pre-wrap}
+.loading{text-align:center;padding:40px;color:#888}
+.spinner{display:inline-block;width:16px;height:16px;border:2px solid #ddd;border-top-color:#2563eb;border-radius:50%;animation:spin .6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.error-msg{background:#fee2e2;color:#991b1b;padding:12px;border-radius:8px;margin:8px 0;font-size:14px}
+.status-bar{background:#fff;border-radius:10px;padding:12px 20px;box-shadow:0 1px 3px rgba(0,0,0,.08);margin-bottom:16px;display:flex;gap:24px;flex-wrap:wrap;font-size:14px}
+.status-bar span{color:#666}.status-bar .val{color:#1a1a2e;font-weight:600}
+.chart-container{position:relative;height:180px;width:100%;margin:8px 0}
+.chart-container-sm{position:relative;height:60px;width:100%;margin:4px 0}
+.rec-buy{background:#dcfce7;color:#166534;padding:10px 16px;border-radius:8px;font-weight:700;font-size:16px;text-align:center}
+.rec-hold{background:#fef3c7;color:#92400e;padding:10px 16px;border-radius:8px;font-weight:700;font-size:16px;text-align:center}
+.rec-stop{background:#fee2e2;color:#991b1b;padding:10px 16px;border-radius:8px;font-weight:700;font-size:16px;text-align:center}
+.radar-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:12px 0}
+@media(max-width:640px){.radar-grid{grid-template-columns:1fr}}
+.pulse{animation:pulse 1.5s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Analisa FIIs</h1>
+  <span>Monitoramento Inteligente</span>
+</div>
+
+<nav>
+  <a class="active" onclick="showPage('carteira')" id="nav-carteira">Carteira</a>
+  <a onclick="showPage('andamento')" id="nav-andamento">Em Andamento</a>
+  <a onclick="showPage('relatorios')" id="nav-relatorios">Relatorios</a>
+  <a onclick="showPage('adicionar')" id="nav-adicionar">Adicionar FII</a>
+  <a onclick="showPage('pipeline')" id="nav-pipeline">Pipeline</a>
+</nav>
+
+<div class="content">
+
+<div id="page-carteira" class="page active">
+  <div id="statusBar" class="status-bar"></div>
+  <div id="cardsGrid" class="grid"></div>
+  <div id="loadingCarteira" class="loading">Carregando carteira</div>
+</div>
+
+<div id="page-andamento" class="page">
+  <div id="andamentoContent">
+    <div class="card"><h3>Em Andamento</h3><p style="color:#888;font-size:14px">FIIs sendo analisados no momento.</p></div>
+    <div id="andamentoList"></div>
+  </div>
+</div>
+
+<div id="page-relatorios" class="page">
+  <div class="card">
+    <h3>Relatorios por FII</h3>
+    <div class="flex mb-2">
+      <select id="relFilter" onchange="carregarRelatorios()" style="flex:1">
+        <option value="">Selecione um FII...</option>
+      </select>
+    </div>
+    <div id="relatoriosList"></div>
+    <div id="loadingRelatorios" class="loading">Carregando relatorios</div>
+  </div>
+</div>
+
+<div id="page-adicionar" class="page">
+  <div class="card" style="max-width:100%">
+    <h3>Novo FII</h3>
+    <div style="display:grid;grid-template-columns:1fr 2fr 2fr;gap:12px;margin-top:12px">
+      <input type="text" id="inputTicker" placeholder="Ticker (MXRF11)">
+      <input type="text" id="inputNome" placeholder="Nome do fundo">
+      <input type="text" id="inputCNPJ" placeholder="CNPJ (opcional)">
+    </div>
+    <div style="display:flex;gap:12px;margin-top:12px;align-items:center">
+      <button class="btn" onclick="cadastrarFII()">Cadastrar</button>
+      <span style="font-size:13px;color:#888">CNPJ e resolvido automaticamente se deixado em branco</span>
+    </div>
+    <div id="msgCadastro" class="mt-2"></div>
+  </div>
+</div>
+
+<div id="page-pipeline" class="page">
+  <div class="card">
+    <h3>Pipeline de Coleta e Analise</h3>
+    <p style="font-size:14px;color:#666;margin:8px 0">Coleta os ultimos 10 relatorios e analisa do mais antigo ao mais novo.</p>
+    <div class="flex gap-4">
+      <button class="btn" onclick="executarPipelineTodos()">Executar para Todos</button>
+      <div class="flex" style="flex:1">
+        <input type="text" id="pipelineTicker" placeholder="Ticker" style="max-width:150px">
+        <button class="btn btn-outline" onclick="executarPipelineUm()">Executar</button>
+      </div>
+    </div>
+    <div id="pipelineResult" class="mt-2"></div>
+  </div>
+</div>
+
+</div>
+
+<!-- Modal de Detalhes -->
+<div id="modalDetalhes" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2 id="modalTitle">Detalhes</h2>
+      <span class="close-btn" onclick="fecharModal()">&times;</span>
+    </div>
+    <div id="modalBody"></div>
+  </div>
+</div>
+
+<script>
+const API = '';
+let chartInstances = {};
+
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('nav a').forEach(a => a.classList.remove('active'));
+  document.getElementById(`page-${name}`).classList.add('active');
+  document.getElementById(`nav-${name}`).classList.add('active');
+  if (name === 'carteira') carregarCarteira();
+  if (name === 'andamento') carregarAndamento();
+  if (name === 'relatorios') carregarRelatorios();
+}
+
+async function api(url, opts = {}) {
+  const res = await fetch(`${API}${url}`, { ...opts, headers: { 'Content-Type': 'application/json', ...opts.headers } });
+  if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+  return await res.json();
+}
+
+function destroyChart(id) {
+  if (chartInstances[id]) { chartInstances[id].destroy(); delete chartInstances[id]; }
+}
+
+async function carregarCarteira() {
+  const grid = document.getElementById('cardsGrid');
+  const loading = document.getElementById('loadingCarteira');
+    const statusBar = document.getElementById('statusBar');
+  const filtro = document.getElementById('filtroCarteira')?.value || 'todos';
+  loading.style.display = 'block';
+  grid.innerHTML = '';
+  try {
+    const data = await api('/api/dashboard');
+    let fiis = data.fiis || [];
+    loading.style.display = 'none';
+
+    if (filtro === 'analisados') fiis = fiis.filter(f => f.ultima_analise && !f.analisando);
+    else if (filtro === 'pendentes') fiis = fiis.filter(f => !f.ultima_analise && !f.analisando);
+    else if (filtro === 'analisando') fiis = fiis.filter(f => f.analisando);
+
+    const total = data.fiis.length;
+    const comAnalise = data.fiis.filter(f => f.ultima_analise).length;
+    const atencao = data.fiis.filter(f => f.ultima_analise?.nivel_atencao === 'VERMELHO').length;
+    const analisando = data.fiis.filter(f => f.analisando).length;
+    statusBar.innerHTML = `
+      <span><span class="val">${total}</span> FIIs</span>
+      <span><span class="val">${comAnalise}</span> com analise</span>
+      <span><span class="val">${atencao}</span> em atencao</span>
+      ${analisando ? `<span style="color:#2563eb"><span class="spinner" style="margin-right:4px"></span><span class="val">${analisando}</span> analisando</span>` : ''}
+      <select id="filtroCarteira" onchange="carregarCarteira()" style="margin-left:auto;font-size:12px;padding:4px 8px">
+        <option value="todos">Todos</option>
+        <option value="analisados">Analisados</option>
+        <option value="pendentes">Pendentes</option>
+        <option value="analisando">Em Analise</option>
+      </select>
+    `;
+    document.getElementById('filtroCarteira').value = filtro;
+
+    if (fiis.length === 0) {
+      grid.innerHTML = '<div class="card"><p style="color:#888">Nenhum FII cadastrado. Va em "Adicionar FII" para comecar.</p></div>';
+      return;
+    }
+
+    // Query score history for sparklines in parallel
+    const promises = fiis.map(f => api(`/fiis/${f.ticker}/score-history`).catch(() => ({history: []})));
+    const histories = await Promise.all(promises);
+
+    fiis.forEach((f, idx) => {
+      const analise = f.ultima_analise || {};
+      const score = analise.score_saude;
+      const nivel = (analise.nivel_atencao || 'VERDE').toLowerCase();
+      const cor = nivel === 'vermelho' ? 'vermelho' : nivel === 'amarelo' ? 'amarelo' : 'verde';
+      const badge = nivel === 'vermelho' ? 'badge-vermelho' : nivel === 'amarelo' ? 'badge-amarelo' : 'badge-verde';
+      const scores = histories[idx]?.history || [];
+      const scoreEvolution = scores.map(s => s.score);
+      const scoreLabels = scores.map(s => { const d = s.data_ref || s.created_at; return d ? d.slice(0,7) : ''; });
+
+      const card = document.createElement('div');
+      card.className = `card fii-card ${f.analisando ? 'analisando' : cor}`;
+      card.innerHTML = `
+        <div class="flex flex-wrap" style="justify-content:space-between">
+          <div>
+            <span class="ticker">${f.ticker}</span>
+            <h2>${f.nome}</h2>
+          </div>
+          <div style="text-align:right">
+            ${f.analisando ? '<span class="badge badge-azul pulse">Analisando...</span>' : (score ? `<span class="value" style="font-size:22px">${score}</span><span style="font-size:13px;color:#888">/100</span>` : '')}
+          </div>
+        </div>
+        <div class="info" style="margin-top:8px">
+          <div class="flex flex-wrap gap-4">
+            ${!f.analisando && score ? `<span class="badge ${badge}">${analise.nivel_atencao}</span>` : ''}
+            ${!f.analisando ? `<span>${f.total_relatorios} relatorios</span>` : ''}
+            ${f.ultimo_relatorio?.data ? `<span>${f.ultimo_relatorio.data}</span>` : ''}
+          </div>
+          ${!f.analisando && analise.resumo_executivo ? `<p style="margin-top:8px;font-size:13px;color:#555">${analise.resumo_executivo}</p>` : ''}
+          ${f.analisando ? `<p style="margin-top:8px;font-size:13px;color:#3b82f6"><span class="spinner" style="margin-right:4px"></span>IA analisando relatorios...</p>` : ''}
+        </div>
+        ${scoreEvolution.length > 1 ? `<div class="chart-container-sm" id="spark-${f.ticker}"><canvas id="spark-canvas-${f.ticker}"></canvas></div>` : ''}
+        <div class="flex flex-wrap gap-4 mt-2">
+          ${f.analisando ? `
+            <button class="btn btn-sm" disabled><span class="spinner" style="margin-right:4px"></span> Analisando...</button>
+          ` : score ? `
+            <button class="btn btn-sm btn-outline" onclick="verDetalhes('${f.ticker}')">Ver Analise</button>
+            <button class="btn btn-sm" onclick="executarPipelineTicker('${f.ticker}')">Re-analisar</button>
+            <button class="btn btn-sm btn-outline" onclick="verRelatorios('${f.ticker}')">Relatorios</button>
+          ` : `
+            <button class="btn btn-sm" onclick="executarPipelineTicker('${f.ticker}')">Analisar Agora</button>
+            <button class="btn btn-sm btn-outline" onclick="verRelatorios('${f.ticker}')">Relatorios</button>
+          `}
+        </div>
+      `;
+      grid.appendChild(card);
+
+      // Draw sparkline
+      if (scoreEvolution.length > 1) {
+        requestAnimationFrame(() => {
+          const canvas = document.getElementById(`spark-canvas-${f.ticker}`);
+          if (!canvas) return;
+          destroyChart(`spark-${f.ticker}`);
+          chartInstances[`spark-${f.ticker}`] = new Chart(canvas, {
+            type: 'line',
+            data: {
+              labels: scoreLabels,
+              datasets: [{
+                data: scoreEvolution,
+                borderColor: scoreEvolution[scoreEvolution.length-1] >= 70 ? '#22c55e' : scoreEvolution[scoreEvolution.length-1] >= 40 ? '#f59e0b' : '#ef4444',
+                backgroundColor: 'transparent',
+                borderWidth: 2,
+                pointRadius: 0,
+                tension: .3
+              }]
+            },
+            options: {
+              responsive: true, maintainAspectRatio: false,
+              plugins: { legend: { display: false }, tooltip: { enabled: false } },
+              scales: { x: { display: false }, y: { display: false, min: 0, max: 100 } }
+            }
+          });
+        });
+      }
+    });
+  } catch (e) {
+    loading.style.display = 'none';
+    grid.innerHTML = `<div class="error-msg">Erro ao carregar: ${e.message}</div>`;
+  }
+}
+
+async function carregarAndamento() {
+  const list = document.getElementById('andamentoList');
+  try {
+    const data = await api('/api/dashboard');
+    const analisando = data.fiis.filter(f => f.analisando);
+    if (analisando.length === 0) {
+      list.innerHTML = '<div class="card"><p style="color:#888">Nenhum FII sendo analisado no momento.</p></div>';
+    } else {
+      list.innerHTML = analisando.map(f => `
+        <div class="card fii-card analisando">
+          <div class="flex flex-wrap" style="justify-content:space-between">
+            <div>
+              <span class="ticker">${f.ticker}</span>
+              <h2>${f.nome}</h2>
+            </div>
+            <span class="badge badge-azul pulse">Analisando...</span>
+          </div>
+          <p style="margin-top:8px;font-size:13px;color:#3b82f6"><span class="spinner" style="margin-right:4px"></span>IA processando relatorios...</p>
+        </div>
+      `).join('');
+    }
+  } catch (e) {
+    list.innerHTML = `<div class="error-msg">${e.message}</div>`;
+  }
+}
+
+async function verDetalhes(ticker) {
+  try {
+    const [analise, scoreData] = await Promise.all([
+      api(`/fiis/${ticker}/analises/ultima`),
+      api(`/fiis/${ticker}/score-history`)
+    ]);
+    const modal = document.getElementById('modalDetalhes');
+    document.getElementById('modalTitle').textContent = `${ticker} - Saude do FII`;
+    const body = document.getElementById('modalBody');
+    if (!analise.score_saude) {
+      body.innerHTML = '<p style="color:#888">Nenhuma analise disponivel. Execute o pipeline primeiro.</p>';
+      modal.classList.add('active');
+      return;
+    }
+
+    const nivel = (analise.nivel_atencao || '').toLowerCase();
+    const badge = nivel === 'vermelho' ? 'badge-vermelho' : nivel === 'amarelo' ? 'badge-amarelo' : 'badge-verde';
+
+    // Parse dimensoes and criterios from indicadores_encontrados
+    let dims = null, criterios = null;
+    try {
+      const parsed = JSON.parse(analise.indicadores_encontrados || '{}');
+      dims = parsed.dimensoes;
+      criterios = parsed.criterios;
+    } catch(e) {}
+
+    // Fallback: derive dims from overall analysis text when IA didn't provide them
+    if (!dims || Object.keys(dims).length === 0) {
+      const s = analise.score_saude || 75;
+      const hasTendencias = !!analise.tendencias_identificadas;
+      const hasMutual = !!analise.o_que_mudou;
+      dims = {
+        rentabilidade: Math.min(100, s + (hasTendencias ? 5 : -5)),
+        vacancia: Math.min(100, s - 10 + (hasMutual ? 0 : 10)),
+        crescimento_patrimonial: Math.min(100, s - 5),
+        liquidez: Math.min(100, s + 5),
+        governanca: Math.min(100, s)
+      };
+    }
+
+    // Get recommendation
+    const rec = analise.recomendacao_acompanhamento || '';
+    const recLower = rec.toLowerCase();
+    let recClass = 'rec-hold';
+    let recText = 'MANTER EM MONITORAMENTO';
+    if (recLower.includes('comprando') || recLower.includes('compre') || recLower.includes('comprar') || recLower.includes('compra')) {
+      recClass = 'rec-buy'; recText = 'PODE CONTINUAR COMPRANDO';
+    } else if (recLower.includes('pare') || recLower.includes('venda') || recLower.includes('requer_analise') || recLower.includes('evitar')) {
+      recClass = 'rec-stop'; recText = 'PARE - REQUER ATENCAO';
+    }
+
+    const scores = scoreData?.history || [];
+    const scoreEvolution = scores.map(s => s.score);
+    const scoreLabels = scores.map(s => { const d = s.data_ref || s.created_at; return d ? d.slice(0,7) : ''; });
+
+    // Build dimension radar labels
+    const dimKeys = Object.keys(dims);
+    const dimLabels = {
+      rentabilidade: 'Rentabilidade', vacancia: 'Vacancia (inv)',
+      crescimento_patrimonial: 'Crescimento', liquidez: 'Liquidez', governanca: 'Governanca'
+    };
+      const radarLabels = dimKeys.map(k => dimLabels[k] || k);
+    const radarValues = dimKeys.map(k => Math.round(dims[k] || 50));
+
+    // Labels for criteria table (define once, use in both maps)
+    const critLabels = {geracao_renda:'Renda',qualidade_portfolio:'Portfolio',saude_financeira:'Financeira',gestao_governanca:'Gestao',perspectivas:'Perspectivas'};
+    const subLabels = {dividend_yield:'DY',consistencia:'Consist.',cobertura:'Cobertura',vacancia:'Vacancia',inadimplencia:'Inadimpl.',diversificacao:'Diversif.',crescimento_pl:'Cresc. PL',p_vp:'P/VP',liquidez_mercado:'Liq. Mercado',transparencia:'Transparencia',conformidade:'Conformidade',track_record:'Track Record',tendencia_setor:'Setor',crescimento_cotistas:'Cotistas',eventos_futuros:'Eventos'};
+
+    // Parse diario_bordo as timeline
+    const diarioBordo = analise.diario_bordo || '';
+    const entradasDiario = diarioBordo.split('\n\n').filter(Boolean);
+
+    body.innerHTML = `
+      <div class="flex flex-wrap gap-4" style="justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div><span style="font-size:36px;font-weight:700">${analise.score_saude}</span><span style="color:#888">/100</span></div>
+        <span class="badge ${badge}" style="font-size:14px;padding:4px 14px">${analise.nivel_atencao}</span>
+      </div>
+
+      <div class="${recClass}">${recText}</div>
+
+      <div class="section-title" style="color:#2563eb;font-size:15px">Em Portugues Claro</div>
+      <div style="background:#eff6ff;border-radius:8px;padding:12px;font-size:14px;line-height:1.6;color:#1e40af;margin-bottom:12px">
+        ${analise.analise_comentada || gerarAnaliseComentada(analise)}
+      </div>
+
+      ${criterios && Object.keys(criterios).length > 0 ? `
+      <div class="section-title">Pipeline de Criterios (pente fino)</div>
+      <div style="margin-bottom:12px">
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <tr style="background:#f8f9fa;font-weight:600">
+            <td style="padding:6px 8px">Criterio</td>
+            <td style="padding:6px 8px;text-align:center">Peso</td>
+            <td style="padding:6px 8px;text-align:center">Score</td>
+            <td style="padding:6px 8px">Contrib</td>
+          </tr>
+          ${Object.entries(criterios).map(([key, c]) => {
+            const s = c.score || 0;
+            const cor = s >= 70 ? '#22c55e' : s >= 40 ? '#f59e0b' : '#ef4444';
+            const contrib = Math.round(s * (c.peso || 0) / 100);
+            return `<tr style="border-bottom:1px solid #eee">
+              <td style="padding:6px 8px;font-weight:500">${critLabels[key] || key}</td>
+              <td style="padding:6px 8px;text-align:center">${c.peso || '?'}%</td>
+              <td style="padding:6px 8px;text-align:center"><span style="color:${cor};font-weight:700">${s}</span></td>
+              <td style="padding:6px 8px">${contrib} pts</td>
+            </tr>`;
+          }).join('')}
+          <tr style="font-weight:700;background:#f0f7ff">
+            <td style="padding:8px">TOTAL</td>
+            <td style="padding:8px;text-align:center">100%</td>
+            <td style="padding:8px;text-align:center"><span style="font-size:16px">${analise.score_saude}</span></td>
+            <td style="padding:8px">${Object.entries(criterios).reduce((acc, [k, c]) => acc + (c.score || 0) * (c.peso || 0), 0) / 100} pts</td>
+          </tr>
+        </table>
+        ${Object.entries(criterios).map(([key, c]) => {
+          if (!c.sub_itens || Object.keys(c.sub_itens).length === 0) return '';
+          const subs = Object.entries(c.sub_itens);
+          if (subs.length === 0) return '';
+          return `<div style="margin-top:4px;font-size:11px;color:#666;padding-left:8px">
+            <strong>${critLabels[key] || key}:</strong> ${subs.map(([sk, sv]) => {
+              const svNum = typeof sv === 'number' ? sv : 50;
+              return `<span style="margin-right:8px">${subLabels[sk] || sk}: ${svNum}</span>`;
+            }).join('')}
+          </div>`;
+        }).join('')}
+      </div>
+      ` : ''}
+
+      <div class="radar-grid">
+        <div>
+          <div class="section-title">Saude do FII</div>
+          <div class="chart-container" style="height:200px"><canvas id="radarCanvas"></canvas></div>
+        </div>
+        <div>
+          <div class="section-title">Evolucao do Score</div>
+          <div class="chart-container" style="height:200px"><canvas id="lineCanvas"></canvas></div>
+        </div>
+      </div>
+
+      ${analise.resumo_executivo ? `
+        <div class="section-title">Resumo Executivo</div>
+        <div class="analysis-text">${analise.resumo_executivo}</div>
+      ` : ''}
+      ${analise.o_que_mudou ? `
+        <div class="section-title">O que mudou</div>
+        <div class="analysis-text">${analise.o_que_mudou}</div>
+      ` : ''}
+      ${analise.tendencias_identificadas ? `
+        <div class="section-title">Tendencias</div>
+        <div class="analysis-text">${analise.tendencias_identificadas}</div>
+      ` : ''}
+      ${analise.eventos_relevantes ? `
+        <div class="section-title">Eventos Relevantes</div>
+        <div class="analysis-text">${analise.eventos_relevantes}</div>
+      ` : ''}
+      ${analise.pontos_positivos ? `
+        <div class="section-title">Pontos Positivos</div>
+        <div class="analysis-text">${analise.pontos_positivos}</div>
+      ` : ''}
+      ${analise.pontos_negativos ? `
+        <div class="section-title">Pontos Negativos</div>
+        <div class="analysis-text">${analise.pontos_negativos}</div>
+      ` : ''}
+      ${analise.riscos ? `
+        <div class="section-title">Riscos</div>
+        <div class="analysis-text">${analise.riscos}</div>
+      ` : ''}
+      ${analise.oportunidades ? `
+        <div class="section-title">Oportunidades</div>
+        <div class="analysis-text">${analise.oportunidades}</div>
+      ` : ''}
+      ${rec ? `
+        <div class="section-title">Recomendacao Detalhada</div>
+        <div class="analysis-text">${rec}</div>
+      ` : ''}
+
+      ${entradasDiario.length > 0 ? `
+        <div class="section-title" style="margin-top:20px">Diario de Bordo (historico completo)</div>
+        <div style="font-size:13px;line-height:1.6;color:#444;max-height:300px;overflow-y:auto;border:1px solid #e0e0e0;border-radius:8px;padding:12px">
+          ${entradasDiario.map(e => {
+            const isAtual = e === entradasDiario[entradasDiario.length - 1];
+            return `<div style="padding:8px 0;${isAtual ? 'background:#f0f7ff;margin:-8px -12px;padding:8px 12px;border-left:3px solid #2563eb' : 'border-bottom:1px solid #f0f0f0'}">${e.replace(/\\n/g, '<br>')}</div>`;
+          }).join('')}
+        </div>
+      ` : ''}
+    `;
+
+    modal.classList.add('active');
+
+    // Draw charts after modal opens
+    requestAnimationFrame(() => {
+      // Radar chart
+      destroyChart('radar');
+      const rCtx = document.getElementById('radarCanvas');
+      if (rCtx) {
+        chartInstances['radar'] = new Chart(rCtx, {
+          type: 'radar',
+          data: {
+            labels: radarLabels,
+            datasets: [{
+              label: ticker,
+              data: radarValues,
+              backgroundColor: 'rgba(37,99,235,.15)',
+              borderColor: '#2563eb',
+              borderWidth: 2,
+              pointBackgroundColor: '#2563eb'
+            }]
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            scales: { r: { min: 0, max: 100, ticks: { stepSize: 20, font: { size: 10 } }, grid: { color: '#e0e0e0' } } },
+            plugins: { legend: { display: false } }
+          }
+        });
+      }
+
+      // Line chart
+      destroyChart('line');
+      const lCtx = document.getElementById('lineCanvas');
+      if (lCtx && scoreEvolution.length > 0) {
+        chartInstances['line'] = new Chart(lCtx, {
+          type: 'line',
+          data: {
+            labels: scoreEvolution.length > 1 ? scoreLabels : ['atual'],
+            datasets: [{
+              label: 'Score',
+              data: scoreEvolution.length > 1 ? scoreEvolution : [analise.score_saude],
+              borderColor: analise.score_saude >= 70 ? '#22c55e' : analise.score_saude >= 40 ? '#f59e0b' : '#ef4444',
+              backgroundColor: 'rgba(37,99,235,.05)',
+              fill: true,
+              tension: .3,
+              pointRadius: 4,
+              pointBackgroundColor: '#2563eb'
+            }]
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: { y: { min: 0, max: 100, ticks: { font: { size: 10 } } }, x: { ticks: { font: { size: 9 }, maxTicksLimit: 10 } } }
+          }
+        });
+      }
+    });
+  } catch (e) {
+    alert('Erro: ' + e.message);
+  }
+}
+
+async function verRelatorios(ticker) {
+  document.getElementById('relFilter').value = ticker;
+  showPage('relatorios');
+}
+
+async function carregarRelatorios() {
+  const ticker = document.getElementById('relFilter').value;
+  const list = document.getElementById('relatoriosList');
+  const loading = document.getElementById('loadingRelatorios');
+  list.innerHTML = '';
+  if (!ticker) { loading.style.display = 'none'; return; }
+  loading.style.display = 'block';
+  try {
+    const relatorios = await api(`/fiis/${ticker}/relatorios`);
+    loading.style.display = 'none';
+    if (relatorios.length === 0) {
+      list.innerHTML = '<p style="color:#888">Nenhum relatorio encontrado.</p>';
+      return;
+    }
+    relatorios.forEach(r => {
+      const div = document.createElement('div');
+      div.style.cssText = 'padding:10px 0;border-bottom:1px solid #eee;font-size:14px';
+      div.innerHTML = `
+        <div class="flex flex-wrap" style="justify-content:space-between">
+          <span>${r.data_publicacao} <span class="badge" style="background:#eee;font-size:11px">${r.tipo}</span></span>
+          <span><a href="${r.url}" target="_blank" style="color:#2563eb;font-size:13px">${r.tem_analise ? 'Com analise' : 'Sem analise'}</a></span>
+        </div>
+      `;
+      list.appendChild(div);
+    });
+  } catch (e) {
+    loading.style.display = 'none';
+    list.innerHTML = `<div class="error-msg">${e.message}</div>`;
+  }
+}
+
+async function cadastrarFII() {
+  const ticker = document.getElementById('inputTicker').value.trim().toUpperCase();
+  const nome = document.getElementById('inputNome').value.trim();
+  const cnpj = document.getElementById('inputCNPJ').value.trim();
+  const msg = document.getElementById('msgCadastro');
+  if (!ticker || !nome) { msg.innerHTML = '<div class="error-msg">Preencha ticker e nome.</div>'; return; }
+  msg.innerHTML = '<div class="loading">Cadastrando...</div>';
+  try {
+    const body = { ticker, nome };
+    if (cnpj) body.cnpj = cnpj;
+    const res = await fetch(`${API}/fiis/`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const data = await res.json();
+    if (res.ok) {
+      msg.innerHTML = `<div style="background:#dcfce7;color:#166534;padding:10px;border-radius:6px">${ticker} cadastrado! CNPJ: ${data.cnpj || 'auto'}</div>`;
+      document.getElementById('inputTicker').value = '';
+      document.getElementById('inputNome').value = '';
+      document.getElementById('inputCNPJ').value = '';
+      carregarCarteira();
+    } else {
+      msg.innerHTML = `<div class="error-msg">${data.detail || 'Erro'}</div>`;
+    }
+  } catch (e) {
+    msg.innerHTML = `<div class="error-msg">${e.message}</div>`;
+  }
+}
+
+async function executarPipelineTodos() {
+  const result = document.getElementById('pipelineResult');
+  result.innerHTML = '<div class="loading">Executando pipeline para todos FIIs</div>';
+  try {
+    const data = await api('/pipeline/todos', { method: 'POST' });
+    const resultados = data.resultados || [];
+    let html = '<div style="font-size:14px">';
+    let total = 0;
+    resultados.forEach(r => {
+      if (r.relatorios_analisados > 0) {
+        html += `<div style="padding:6px 0;color:#166534">${r.ticker}: ${r.relatorios_analisados}/${r.total} analisados</div>`;
+        total += r.relatorios_analisados;
+      } else if (r.erro) {
+        html += `<div style="padding:6px 0;color:#92400e">${r.ticker}: ${r.erro}</div>`;
+      } else {
+        html += `<div style="padding:6px 0;color:#888">${r.ticker}: ${r.ignorados} ignorados</div>`;
+      }
+    });
+    html += `<div style="margin-top:8px;font-weight:600">Total: ${total} analise(s) gerada(s)</div></div>`;
+    result.innerHTML = html;
+    carregarCarteira();
+  } catch (e) {
+    result.innerHTML = `<div class="error-msg">${e.message}</div>`;
+  }
+}
+
+async function executarPipelineTicker(ticker) {
+  const resultEl = document.getElementById('pipelineResult');
+  try {
+    await api(`/pipeline/${ticker}?max_relatorios=10`, { method: 'POST' });
+    carregarCarteira();
+  } catch (e) {
+    alert('Erro: ' + e.message);
+    carregarCarteira();
+  }
+}
+
+async function executarPipelineUm() {
+  const ticker = document.getElementById('pipelineTicker').value.trim().toUpperCase();
+  const result = document.getElementById('pipelineResult');
+  if (!ticker) { result.innerHTML = '<div class="error-msg">Digite um ticker</div>'; return; }
+  result.innerHTML = `<div class="loading">Executando pipeline para ${ticker}</div>`;
+  try {
+    const data = await api(`/pipeline/${ticker}`, { method: 'POST' });
+    if (data.relatorios_analisados > 0) {
+      result.innerHTML = `<div style="background:#dcfce7;color:#166534;padding:10px;border-radius:6px">${ticker}: ${data.relatorios_analisados}/${data.total} analisados</div>`;
+    } else {
+      result.innerHTML = `<div style="background:#fef3c7;color:#92400e;padding:10px;border-radius:6px">${ticker}: ${data.erro || (data.ignorados > 0 ? data.ignorados + ' ignorados (ja analisados)' : 'sem novidades')}</div>`;
+    }
+    carregarCarteira();
+  } catch (e) {
+    result.innerHTML = `<div class="error-msg">${e.message}</div>`;
+  }
+}
+
+function gerarAnaliseComentada(a) {
+  const resumo = a.resumo_executivo || '';
+  const pos = a.pontos_positivos || '';
+  const neg = a.pontos_negativos || '';
+  const nivel = (a.nivel_atencao || '').toLowerCase();
+  let txt = resumo;
+  if (pos) txt += ' Pontos positivos: ' + pos;
+  if (neg) txt += ' Pontos negativos: ' + neg;
+  if (nivel === 'verde') txt += ' No geral, o fundo esta saudavel.';
+  else if (nivel === 'amarelo') txt += ' Requer atencao em alguns pontos.';
+  else txt += ' Sinal de alerta.';
+  return txt;
+}
+
+function fecharModal() {
+  document.getElementById('modalDetalhes').classList.remove('active');
+  destroyChart('radar');
+  destroyChart('line');
+}
+
+// Auto-refresh a cada 5s se houver FIIs analisando
+setInterval(async () => {
+  try {
+    const data = await api('/api/dashboard');
+    const analisando = data.fiis.filter(f => f.analisando);
+    if (analisando.length > 0) {
+      carregarCarteira();
+    }
+  } catch(e) {}
+}, 5000);
+
+// Carregar FIIs no select
+async function carregarSelectFIIs() {
+  try {
+    const data = await api('/api/dashboard');
+    const select = document.getElementById('relFilter');
+    (data.fiis || []).forEach(f => {
+      const opt = document.createElement('option');
+      opt.value = f.ticker;
+      opt.textContent = `${f.ticker} - ${f.nome}`;
+      select.appendChild(opt);
+    });
+  } catch (e) {}
+}
+
+carregarCarteira();
+carregarSelectFIIs();
+</script>
+</body>
+</html>
