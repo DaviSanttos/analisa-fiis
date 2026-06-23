@@ -88,7 +88,7 @@ Frontend (HTML/JS via FastAPI) ←→ API REST (FastAPI) ←→ SQLite (SQLAlche
 | GET | `/fiis/{ticker}/analises/ultima` | Última análise completa |
 | GET | `/fiis/{ticker}/score-history` | Histórico de scores para gráfico |
 | GET | `/fiis/{ticker}/relatorios` | Listar relatórios |
-| POST | `/pipeline/{ticker}` | Executar pipeline para 1 FII |
+| POST | `/pipeline/{ticker}` | Executar pipeline para 1 FII (`?reset=true` limpa dados antes) |
 | POST | `/pipeline/todos` | Executar para todos FIIs |
 | POST | `/pipeline/reanalisar/{ticker}` | Forçar re-análise do último relatório |
 | GET | `/api/buscar-cnpj/{ticker}` | Buscar CNPJ via StatusInvest |

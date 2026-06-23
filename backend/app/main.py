@@ -175,13 +175,18 @@ def obter_ultima_analise(ticker: str, db: Session = Depends(get_db)):
 # --- PIPELINE ---
 
 @app.post("/pipeline/{ticker}")
-def executar_pipeline(ticker: str, max_relatorios: int = 2, db: Session = Depends(get_db)):
-    processing_fiis.add(ticker.upper())
+def executar_pipeline(ticker: str, max_relatorios: int = 2, reset: bool = False, db: Session = Depends(get_db)):
+    ticker_up = ticker.upper()
+    if reset:
+        db.query(models.Analise).filter(models.Analise.fii_ticker == ticker_up).delete()
+        db.query(models.Relatorio).filter(models.Relatorio.fii_ticker == ticker_up).delete()
+        db.commit()
+    processing_fiis.add(ticker_up)
     try:
         pipeline = PipelineProcessamento(db)
-        return pipeline.executar_para_fii(ticker, max_relatorios=max_relatorios)
+        return pipeline.executar_para_fii(ticker_up, max_relatorios=max_relatorios)
     finally:
-        processing_fiis.discard(ticker.upper())
+        processing_fiis.discard(ticker_up)
 
 @app.post("/pipeline/todos")
 def executar_pipeline_todos(db: Session = Depends(get_db)):
